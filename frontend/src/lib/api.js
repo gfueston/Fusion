@@ -1,7 +1,8 @@
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+  "Access-Control-Allow-Headers": "*",
+  "Access-Control-Max-Age": "86400",
 }
 
 function json(data, status = 200) {
@@ -19,22 +20,23 @@ export default {
     if (request.method === "OPTIONS") {
       return new Response(null, {
         status: 204,
-        headers: {
-          ...corsHeaders,
-          "Access-Control-Max-Age": "86400",
-        },
+        headers: corsHeaders,
       })
     }
 
     const url = new URL(request.url)
 
     try {
+      if (request.method === "GET" && url.pathname === "/health") {
+        return json({ ok: true, service: "fusion-api" })
+      }
+
       if (request.method === "POST" && url.pathname === "/auth/register") {
         const payload = await request.json()
         return json({
           success: true,
           message: "User registered",
-          user: { email: payload.email }
+          user: { email: payload.email ?? null }
         })
       }
 
@@ -43,7 +45,7 @@ export default {
         return json({
           success: true,
           token: "demo-token",
-          user: { email: payload.email }
+          user: { email: payload.email ?? null }
         })
       }
 
