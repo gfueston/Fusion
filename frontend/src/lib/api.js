@@ -1,39 +1,70 @@
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
-
-export async function registerUser(payload) {
-  const response = await fetch(`${API_BASE}/auth/register`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  })
-  if (!response.ok) throw new Error('Registration failed')
-  return response.json()
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
 }
 
-export async function loginUser(payload) {
-  const response = await fetch(`${API_BASE}/auth/login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
+function json(data, status = 200) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: {
+      "Content-Type": "application/json",
+      ...corsHeaders,
+    },
   })
-  if (!response.ok) throw new Error('Login failed')
-  return response.json()
 }
 
-export async function ingestSource(payload) {
-  const response = await fetch(`${API_BASE}/ingest`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  })
-  if (!response.ok) throw new Error('Ingest failed')
-  return response.json()
-}
+export default {
+  async fetch(request) {
+    if (request.method === "OPTIONS") {
+      return new Response(null, {
+        status: 204,
+        headers: {
+          ...corsHeaders,
+          "Access-Control-Max-Age": "86400",
+        },
+      })
+    }
 
-export async function fetchLeads(search = '') {
-  const url = new URL(`${API_BASE}/leads`)
-  if (search) url.searchParams.set('search', search)
-  const response = await fetch(url)
-  if (!response.ok) throw new Error('Lead fetch failed')
-  return response.json()
+    const url = new URL(request.url)
+
+    try {
+      if (request.method === "POST" && url.pathname === "/auth/register") {
+        const payload = await request.json()
+        return json({
+          success: true,
+          message: "User registered",
+          user: { email: payload.email }
+        })
+      }
+
+      if (request.method === "POST" && url.pathname === "/auth/login") {
+        const payload = await request.json()
+        return json({
+          success: true,
+          token: "demo-token",
+          user: { email: payload.email }
+        })
+      }
+
+      if (request.method === "POST" && url.pathname === "/ingest") {
+        const payload = await request.json()
+        return json({
+          success: true,
+          received: payload
+        })
+      }
+
+      if (request.method === "GET" && url.pathname === "/leads") {
+        return json([
+          { id: "L-1024", title: "Cross-border transfer cluster", priority: "high" },
+          { id: "L-1025", title: "Port facility anomaly", priority: "medium" }
+        ])
+      }
+
+      return json({ error: "Not found", path: url.pathname }, 404)
+    } catch (error) {
+      return json({ error: "Worker exception", detail: String(error) }, 500)
+    }
+  },
 }
